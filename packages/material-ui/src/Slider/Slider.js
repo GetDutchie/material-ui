@@ -580,6 +580,16 @@ const Slider = React.forwardRef(function Slider(props, ref) {
     }
   });
 
+  const handleMouseMove = useEventCallback((event) => {
+    // require the left mouse button still be held
+    if (event.buttons === 1) {
+      handleTouchMove(event);
+    } else {
+      touchId.current = undefined;
+      stopListening();
+    }
+  });
+
   const handleTouchEnd = useEventCallback((event) => {
     const finger = trackFinger(event, touchId);
 
@@ -600,11 +610,7 @@ const Slider = React.forwardRef(function Slider(props, ref) {
 
     touchId.current = undefined;
 
-    const doc = ownerDocument(sliderRef.current);
-    doc.removeEventListener('mousemove', handleTouchMove);
-    doc.removeEventListener('mouseup', handleTouchEnd);
-    doc.removeEventListener('touchmove', handleTouchMove);
-    doc.removeEventListener('touchend', handleTouchEnd);
+    stopListening();
   });
 
   const handleTouchStart = useEventCallback((event) => {
@@ -630,21 +636,29 @@ const Slider = React.forwardRef(function Slider(props, ref) {
     doc.addEventListener('touchend', handleTouchEnd);
   });
 
+  const stopListening = React.useCallback(() => {
+    const doc = ownerDocument(sliderRef.current);
+    doc.removeEventListener('mousemove', handleMouseMove);
+    doc.removeEventListener('mouseup', handleTouchEnd);
+    doc.removeEventListener('touchmove', handleTouchMove);
+    doc.removeEventListener('touchend', handleTouchEnd);
+  }, [handleMouseMove, handleTouchEnd, handleTouchMove, sliderRef]);
+
   React.useEffect(() => {
     const { current: slider } = sliderRef;
     slider.addEventListener('touchstart', handleTouchStart);
-    const doc = ownerDocument(slider);
 
     return () => {
       slider.removeEventListener('touchstart', handleTouchStart);
-      doc.removeEventListener('mousemove', handleTouchMove);
-      doc.removeEventListener('mouseup', handleTouchEnd);
-      doc.removeEventListener('touchmove', handleTouchMove);
-      doc.removeEventListener('touchend', handleTouchEnd);
+      stopListening();
     };
-  }, [handleTouchEnd, handleTouchMove, handleTouchStart]);
+  }, [stopListening, handleTouchStart, sliderRef]);
 
   const handleMouseDown = useEventCallback((event) => {
+    // don't listen to right clicks
+    if (event.buttons === 2) {
+      return;
+    }
     if (onMouseDown) {
       onMouseDown(event);
     }
@@ -661,7 +675,7 @@ const Slider = React.forwardRef(function Slider(props, ref) {
     }
 
     const doc = ownerDocument(sliderRef.current);
-    doc.addEventListener('mousemove', handleTouchMove);
+    doc.addEventListener('mousemove', handleMouseMove);
     doc.addEventListener('mouseup', handleTouchEnd);
   });
 
